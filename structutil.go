@@ -9,6 +9,19 @@ import (
 	"strings"
 )
 
+func Stringify(in *map[interface{}]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range *in {
+		if subMap, ok := v.(map[interface{}]interface{}); ok {
+			result[fmt.Sprintf("%v", k)] = Stringify(&subMap)
+		} else {
+			result[fmt.Sprintf("%v", k)] = fmt.Sprintf("%v", v)
+		}
+	}
+
+	return result
+}
+
 func MakeMarshalFriendly(in *map[interface{}]interface{}) *map[string]interface{} {
 	result := make(map[string]interface{})
 	for key, value := range *in {
