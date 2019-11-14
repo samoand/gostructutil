@@ -159,12 +159,12 @@ func initialize() {
 
 func merge1(t *testing.T, immutable bool) {
 	initialize()
-	mergeableMaps := []*map[interface{}]interface{}{&one, &two, &three, &four, &five, &six}
+	mergeableMaps := []map[interface{}]interface{}{one, two, three, four, five, six}
 	result, err := MergeAll(mergeableMaps, immutable, TypeValuesToRegister...)
 	if err != nil {
 		t.Fatal("Error reported where should be none")
 	}
-	assert.DeepEqual(t, *result, mergeResult)
+	assert.DeepEqual(t, result, mergeResult)
 }
 
 func TestMerge1(t *testing.T) {
@@ -175,12 +175,12 @@ func TestMerge1(t *testing.T) {
 func merge2(t *testing.T, immutable bool) {
 	initialize()
 	// mergeableMaps = []*map[interface{}]interface{} {&one, &two, &three, &four, &five, &six, &intermixed}
-	mergeableMaps := []*map[interface{}]interface{}{&two, &intermixed}
+	mergeableMaps := []map[interface{}]interface{}{two, intermixed}
 	result, err := MergeAll(mergeableMaps, immutable, TypeValuesToRegister...)
 	if err != nil {
 		t.Fatal("Error reported where should be none")
 	}
-	assert.DeepEqual(t, *result, intermixedMergeResult)
+	assert.DeepEqual(t, result, intermixedMergeResult)
 }
 
 func TestMerge2(t *testing.T) {
@@ -191,7 +191,7 @@ func TestMerge2(t *testing.T) {
 func merge3(t *testing.T, immutable bool) {
 	initialize()
 	// mergeableMaps = []*map[interface{}]interface{} {&one, &two, &three, &four, &five, &six, &intermixed}
-	mergeableMaps := []*map[interface{}]interface{}{&two, &intermixedBad}
+	mergeableMaps := []map[interface{}]interface{}{two, intermixedBad}
 	result, err := MergeAll(mergeableMaps, immutable, TypeValuesToRegister...)
 	if err == nil {
 		resultJsonRepr, _ := json.Marshal(MakeMarshalFriendly(result))
@@ -207,7 +207,7 @@ func TestMerge3(t *testing.T) {
 func merge4(t *testing.T, immutable bool) {
 	initialize()
 	// mergeableMaps = []*map[interface{}]interface{} {&one, &two, &three, &four, &five, &six, &intermixed}
-	mergeableMaps := []*map[interface{}]interface{}{&intermixedBad, &two}
+	mergeableMaps := []map[interface{}]interface{}{intermixedBad, two}
 	result, err := MergeAll(mergeableMaps, false, TypeValuesToRegister...)
 	if err == nil {
 		resultJsonRepr, _ := json.Marshal(MakeMarshalFriendly(result))

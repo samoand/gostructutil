@@ -6,30 +6,38 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/glog"
-	"reflect"
 	"strings"
 )
 
-func Stringify(in *map[interface{}]interface{}) map[string]interface{} {
+func Stringify(in map[interface{}]interface{}, special map[interface{}] func(interface{}) string) map[string]interface{} {
 	result := make(map[string]interface{})
-	for k, v := range *in {
+	for k, v := range in {
 		if subMap, ok := v.(map[interface{}]interface{}); ok {
-			result[fmt.Sprintf("%v", k)] = Stringify(&subMap)
-		} else if reflect.ValueOf(v).Kind() != reflect.Ptr { // skip pointers
-			result[fmt.Sprintf("%v", k)] = fmt.Sprintf("%v", v)
+			result[fmt.Sprintf("%v", k)] = Stringify(subMap, special)
+		} else {
+			set := false
+			if special != nil {
+				if specialFun, ok := special[k]; ok {
+					set = true
+					result[fmt.Sprintf("%v", k)] = specialFun(v)
+				}
+			}
+			if !set {
+				result[fmt.Sprintf("%v", k)] = fmt.Sprintf("%v", v)
+			}
 		}
 	}
 
 	return result
 }
 
-func MakeMarshalFriendly(in *map[interface{}]interface{}) *map[string]interface{} {
+func MakeMarshalFriendly(in map[interface{}]interface{}) *map[string]interface{} {
 	result := make(map[string]interface{})
-	for key, value := range *in {
+	for key, value := range in {
 		keyAsStr := fmt.Sprintf("%v", key)
 		valueAsMap, ok := value.(map[interface{}]interface{})
 		if ok {
-			result[keyAsStr] = *MakeMarshalFriendly(&valueAsMap)
+			result[keyAsStr] = *MakeMarshalFriendly(valueAsMap)
 		} else {
 			result[keyAsStr] = value
 		}
@@ -38,8 +46,8 @@ func MakeMarshalFriendly(in *map[interface{}]interface{}) *map[string]interface{
 	return &result
 }
 
-func CloneMap(amap *map[interface{}]interface{},
-	typeSampleValues ...interface{}) *map[interface{}]interface{} {
+func CloneMap(amap map[interface{}]interface{},
+	typeSampleValues ...interface{}) map[interface{}]interface{} {
 	if typeSampleValues != nil {
 		for _, value := range typeSampleValues {
 			gob.Register(value)
@@ -48,7 +56,7 @@ func CloneMap(amap *map[interface{}]interface{},
 	buff := new(bytes.Buffer)
 	enc := gob.NewEncoder(buff)
 	dec := gob.NewDecoder(buff)
-	err := enc.Encode(*amap)
+	err := enc.Encode(amap)
 	if err != nil {
 		panic(err)
 	}
@@ -57,7 +65,7 @@ func CloneMap(amap *map[interface{}]interface{},
 	if err != nil {
 		panic(err)
 	}
-	return &res
+	return res
 }
 
 func sliceRepr(in []interface{}, sep string) string {
@@ -69,13 +77,13 @@ func sliceRepr(in []interface{}, sep string) string {
 }
 
 func Merge(
-	one *map[interface{}]interface{},
-	two *map[interface{}]interface{},
+	one map[interface{}]interface{},
+	two map[interface{}]interface{},
 	immutable bool,
-	typeSampleValues ...interface{}) (*map[interface{}]interface{}, error) {
+	typeSampleValues ...interface{}) (map[interface{}]interface{}, error) {
 
-	var source *map[interface{}]interface{}
-	var target *map[interface{}]interface{}
+	var source map[interface{}]interface{}
+	var target map[interface{}]interface{}
 	if immutable {
 		source = CloneMap(two, typeSampleValues...)
 		target = CloneMap(one, typeSampleValues...)
@@ -84,15 +92,15 @@ func Merge(
 		target = one
 	}
 	var inner func(
-		source *map[interface{}]interface{},
-		target *map[interface{}]interface{},
-		priorKeys []interface{}) (*map[interface{}]interface{}, error)
+		source map[interface{}]interface{},
+		target map[interface{}]interface{},
+		priorKeys []interface{}) (map[interface{}]interface{}, error)
 	inner = func(
-		source *map[interface{}]interface{},
-		target *map[interface{}]interface{},
-		priorKeys []interface{}) (*map[interface{}]interface{}, error) {
+		source map[interface{}]interface{},
+		target map[interface{}]interface{},
+		priorKeys []interface{}) (map[interface{}]interface{}, error) {
 
-		for sourceKey, sourceValue := range *source {
+		for sourceKey, sourceValue := range source {
 			keysRepr := func() string {
 				priorKeysAsDn := sliceRepr(priorKeys, "/")
 				if len(priorKeysAsDn) > 0 {
@@ -100,7 +108,7 @@ func Merge(
 				}
 				return priorKeysAsDn + "/" + fmt.Sprintf("%v", sourceKey)
 			}
-			targetValue, existsInTarget := (*target)[sourceKey]
+			targetValue, existsInTarget := target[sourceKey]
 			if existsInTarget {
 				targetValueAsMap, targetValueIsMap := targetValue.(map[interface{}]interface{})
 				sourceValueAsMap, sourceValueIsMap := sourceValue.(map[interface{}]interface{})
@@ -113,13 +121,13 @@ func Merge(
 				} else if !targetValueIsMap {
 					glog.Warning(fmt.Sprintf("Key clash at %s, value %v overrides value %v",
 						keysRepr(), sourceValue, targetValue))
-					(*target)[sourceKey] = sourceValue
+					target[sourceKey] = sourceValue
 				} else {
-					inner(&sourceValueAsMap, &targetValueAsMap, append(priorKeys, sourceKey))
+					inner(sourceValueAsMap, targetValueAsMap, append(priorKeys, sourceKey))
 				}
 
 			} else {
-				(*target)[sourceKey] = (*source)[sourceKey]
+				(target)[sourceKey] = (source)[sourceKey]
 			}
 		}
 
@@ -128,10 +136,10 @@ func Merge(
 	return inner(source, target, make([]interface{}, 0))
 }
 
-func MergeAll(ms []*map[interface{}]interface{}, immutable bool,
-	typeSampleValues ...interface{}) (*map[interface{}]interface{}, error) {
+func MergeAll(ms []map[interface{}]interface{}, immutable bool,
+	typeSampleValues ...interface{}) (map[interface{}]interface{}, error) {
 	type MergeResult = struct {
-		result *map[interface{}]interface{}
+		result map[interface{}]interface{}
 		err    error
 	}
 	switch size := len(ms); size {
