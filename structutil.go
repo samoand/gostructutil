@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func Stringify(in map[interface{}]interface{}, special map[interface{}] func(interface{}) string) map[string]interface{} {
+func Stringify(in map[interface{}]interface{}, special map[interface{}]func(interface{}) string) map[string]interface{} {
 	result := make(map[string]interface{})
 	for k, v := range in {
 		if subMap, ok := v.(map[interface{}]interface{}); ok {
@@ -171,14 +171,25 @@ func MergeAll(ms []map[interface{}]interface{}, immutable bool,
 	}
 }
 
-func FindMatching(dict map[interface{}]interface{}, matcher func(map[interface{}]interface{}) bool) [](map[interface{}]interface{}){
+// depthLimit = 0 for no depth limit
+func FindMatching(dict map[interface{}]interface{}, matcher func(map[interface{}]interface{}) bool,
+					maxdept int, stoponsuccess bool) [](map[interface{}]interface{}) {
 	result := make([](map[interface{}]interface{}), 0)
+	stop := false
 	if matcher(dict) {
 		result = append(result, dict)
+		if stoponsuccess {
+			stop = true
+		}
 	}
-	for _, v := range dict {
-		if childDict, ok := v.(map[interface{}]interface{}); ok {
-			result = append(result, FindMatching(childDict, matcher)...)
+	if maxdept == 1 {
+		stop = true
+	}
+	if !stop {
+		for _, v := range dict {
+			if childDict, ok := v.(map[interface{}]interface{}); ok {
+				result = append(result, FindMatching(childDict, matcher, maxdept-1, stoponsuccess)...)
+			}
 		}
 	}
 
