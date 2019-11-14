@@ -170,3 +170,17 @@ func MergeAll(ms []map[interface{}]interface{}, immutable bool,
 		return Merge(one.result, two.result, immutable, typeSampleValues...)
 	}
 }
+
+func FindMatching(dict map[interface{}]interface{}, matcher func(map[interface{}]interface{}) bool) [](map[interface{}]interface{}){
+	result := make([](map[interface{}]interface{}), 0)
+	if matcher(dict) {
+		result = append(result, dict)
+	}
+	for _, v := range dict {
+		if childDict, ok := v.(map[interface{}]interface{}); ok {
+			result = append(result, FindMatching(childDict, matcher)...)
+		}
+	}
+
+	return result
+}
