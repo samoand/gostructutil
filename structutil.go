@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/glog"
+	"reflect"
 	"strings"
 )
 
@@ -14,7 +15,7 @@ func Stringify(in *map[interface{}]interface{}) map[string]interface{} {
 	for k, v := range *in {
 		if subMap, ok := v.(map[interface{}]interface{}); ok {
 			result[fmt.Sprintf("%v", k)] = Stringify(&subMap)
-		} else {
+		} else if reflect.ValueOf(v).Kind() != reflect.Ptr { // skip pointers
 			result[fmt.Sprintf("%v", k)] = fmt.Sprintf("%v", v)
 		}
 	}
