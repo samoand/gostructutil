@@ -195,3 +195,28 @@ func FindMatching(dict map[interface{}]interface{}, matcher func(map[interface{}
 
 	return result
 }
+
+func VisitMatching(root map[interface{}]interface{},
+					matcher func(map[interface{}]interface{}) bool,
+					nodeVisitor func(map[interface{}]interface{}) (interface{}, error),
+					reducer func([]interface{}) (interface{}, error),
+	maxdept int, stoponsuccess bool) (interface{}, error) {
+	var results []interface{}
+	for _, node := range FindMatching(root, matcher, maxdept, stoponsuccess) {
+		interimResult, err := nodeVisitor(node)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, interimResult)
+	}
+	var result interface{}
+	result = nil
+	if reducer != nil {
+		var err error
+		result, err = reducer(results)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
