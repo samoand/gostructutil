@@ -173,7 +173,7 @@ func MergeAll(ms []map[interface{}]interface{}, immutable bool,
 
 // depthLimit = 0 for no depth limit
 func FindMatching(dict map[interface{}]interface{}, matcher func(map[interface{}]interface{}) bool,
-					maxdept int, stoponsuccess bool) [](map[interface{}]interface{}) {
+	maxdept int, stoponsuccess bool) [](map[interface{}]interface{}) {
 	result := make([](map[interface{}]interface{}), 0)
 	stop := false
 	if matcher(dict) {
@@ -197,9 +197,9 @@ func FindMatching(dict map[interface{}]interface{}, matcher func(map[interface{}
 }
 
 func VisitMatching(root map[interface{}]interface{},
-					matcher func(map[interface{}]interface{}) bool,
-					nodeVisitor func(map[interface{}]interface{}) (interface{}, error),
-					reducer func([]interface{}) (interface{}, error),
+	matcher func(map[interface{}]interface{}) bool,
+	nodeVisitor func(map[interface{}]interface{}) (interface{}, error),
+	reducer func([]interface{}) (interface{}, error),
 	maxdept int, stoponsuccess bool) (interface{}, error) {
 	var results []interface{}
 	for _, node := range FindMatching(root, matcher, maxdept, stoponsuccess) {
@@ -219,4 +219,69 @@ func VisitMatching(root map[interface{}]interface{},
 		}
 	}
 	return result, nil
+}
+
+func Contains(s []interface{}, e interface{}) bool {
+	for _, el := range s {
+		if el == e {
+			return true
+		}
+	}
+	return false
+}
+
+func DeleteIndexFromSlice(s []interface{}, i int) {
+	copy(s[i:], s[i+1:])
+	s[len(s)-1] = nil
+	s = s[:len(s)-1]
+}
+
+func DeleteElFromSlice(s []interface{}, el interface{}) {
+	index := -1
+	for i, next := range s {
+		if next == el {
+			index = i
+			break
+		}
+	}
+	if index > -1 {
+		DeleteIndexFromSlice(s, index)
+	}
+}
+
+type OrderedSet struct {
+	List []interface{}
+	Map map[interface{}]struct{}
+}
+
+func (s *OrderedSet) append(el interface{}) bool {
+	if _, ok := s.Map[el]; !ok {
+		s.Map[el] = struct{}{}
+		s.List = append(s.List, el)
+		return true
+	} else {
+		return false
+	}
+}
+
+func (s *OrderedSet) delete(el interface{}) bool {
+	if _, ok := s.Map[el]; !ok {
+		return false
+	} else {
+		delete(s.Map, el)
+		DeleteElFromSlice(s.List, el)
+		return true
+	}
+}
+
+func (s *OrderedSet) len() int {
+	return len(s.List)
+}
+
+func ListToOrderedSet(l []interface{}) OrderedSet {
+	var result OrderedSet
+	for _, el := range l {
+		result.append(el)
+	}
+	return result
 }
