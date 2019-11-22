@@ -77,8 +77,8 @@ func sliceRepr(in []interface{}, sep string) string {
 }
 
 func Merge(
-	one map[interface{}]interface{},
-	two map[interface{}]interface{},
+	one map[interface{}]interface{}, // target
+	two map[interface{}]interface{}, // source
 	immutable bool,
 	typeSampleValues ...interface{}) (map[interface{}]interface{}, error) {
 
@@ -228,6 +228,15 @@ func Contains(s []interface{}, e interface{}) bool {
 		}
 	}
 	return false
+}
+
+func FindInSlice(s []interface{}, e interface{}, eq func(interface{}, interface{}) bool) interface{} {
+	for _, el := range s {
+		if eq(el, e) {
+			return el
+		}
+	}
+	return nil
 }
 
 func DeleteIndexFromSlice(s []interface{}, i int) {
