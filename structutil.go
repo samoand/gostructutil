@@ -119,7 +119,7 @@ func Merge(
 					glog.Error(err)
 					return nil, errors.New(err)
 				} else if !targetValueIsMap {
-					glog.Warning(fmt.Sprintf("Key clash at %s, value %v overrides value %v",
+					glog.Info(fmt.Sprintf("Key clash at %s, value %v overrides value %v",
 						keysRepr(), sourceValue, targetValue))
 					target[sourceKey] = sourceValue
 				} else {
