@@ -2,7 +2,7 @@ package structutil
 
 import (
 	"encoding/json"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 	"testing"
 )
 
@@ -10,6 +10,7 @@ var TypeValuesToRegister []interface{}
 
 var one map[interface{}]interface{}
 var two map[interface{}]interface{}
+var twoPrime map[interface{}]interface{}
 var three map[interface{}]interface{}
 var four map[interface{}]interface{}
 var five map[interface{}]interface{}
@@ -48,6 +49,11 @@ func initialize() {
 			},
 		},
 		"keyTwo4": "valueTwo4",
+	}
+	twoPrime = map[interface{}]interface{}{
+		"keyTwo1": map[interface{}]interface{}{
+			"keyTwo1_1": "valueTwo1_1Prime",
+		},
 	}
 	three = map[interface{}]interface{}{
 		"keyThree1": map[interface{}]interface{}{
@@ -186,6 +192,22 @@ func merge2(t *testing.T, immutable bool) {
 func TestMerge2(t *testing.T) {
 	merge2(t, false)
 	merge2(t, true)
+}
+
+func TestMutable(t *testing.T) {
+	initialize()
+	preMergeKeyTwo1_1 := two["keyTwo1"].(map[interface{}]interface{})["keyTwo1_1"]
+	Merge(two, twoPrime, false, TypeValuesToRegister...)
+	postMergeKeyTwo1_1 := two["keyTwo1"].(map[interface{}]interface{})["keyTwo1_1"]
+	assert.Check(t, preMergeKeyTwo1_1 != postMergeKeyTwo1_1)
+}
+
+func TestImmutable(t *testing.T) {
+	initialize()
+	preMergeKeyTwo1_1 := two["keyTwo1"].(map[interface{}]interface{})["keyTwo1_1"]
+	Merge(two, twoPrime, true, TypeValuesToRegister...)
+	postMergeKeyTwo1_1 := two["keyTwo1"].(map[interface{}]interface{})["keyTwo1_1"]
+	assert.Equal(t, preMergeKeyTwo1_1, postMergeKeyTwo1_1)
 }
 
 func merge3(t *testing.T, immutable bool) {
