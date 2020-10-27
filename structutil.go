@@ -119,8 +119,6 @@ func Merge(
 					glog.Error(err)
 					return nil, errors.New(err)
 				} else if !targetValueIsMap {
-					glog.Info(fmt.Sprintf("Key clash at %s, value %v overrides value %v",
-						keysRepr(), sourceValue, targetValue))
 					target[sourceKey] = sourceValue
 				} else {
 					inner(sourceValueAsMap, targetValueAsMap, append(priorKeys, sourceKey))
@@ -173,8 +171,8 @@ func MergeAll(ms []map[interface{}]interface{}, immutable bool,
 
 // depthLimit = 0 for no depth limit
 func FindMatching(dict map[interface{}]interface{}, matcher func(map[interface{}]interface{}) bool,
-	maxdept int, stoponsuccess bool) [](map[interface{}]interface{}) {
-	result := make([](map[interface{}]interface{}), 0)
+	maxdept int, stoponsuccess bool) []map[interface{}]interface{} {
+	result := make([]map[interface{}]interface{}, 0)
 	stop := false
 	if matcher(dict) {
 		result = append(result, dict)
@@ -260,7 +258,7 @@ func DeleteElFromSlice(s []interface{}, el interface{}) {
 
 type OrderedSet struct {
 	List []interface{}
-	Map map[interface{}]struct{}
+	Map  map[interface{}]struct{}
 }
 
 func (s *OrderedSet) append(el interface{}) bool {
