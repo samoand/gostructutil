@@ -79,7 +79,7 @@ func sliceRepr(in []interface{}, sep string) string {
 func Merge(
 	one map[interface{}]interface{}, // target
 	two map[interface{}]interface{}, // source
-	immutable bool,
+	immutable, override bool,
 	typeSampleValues ...interface{}) (map[interface{}]interface{}, error) {
 
 	var source map[interface{}]interface{}
@@ -118,7 +118,7 @@ func Merge(
 						keysRepr())
 					glog.Error(err)
 					return nil, errors.New(err)
-				} else if !targetValueIsMap {
+				} else if !targetValueIsMap && override {
 					target[sourceKey] = sourceValue
 				} else {
 					inner(sourceValueAsMap, targetValueAsMap, append(priorKeys, sourceKey))
@@ -134,7 +134,7 @@ func Merge(
 	return inner(source, target, make([]interface{}, 0))
 }
 
-func MergeAll(ms []map[interface{}]interface{}, immutable bool,
+func MergeAll(ms []map[interface{}]interface{}, immutable, override bool,
 	typeSampleValues ...interface{}) (map[interface{}]interface{}, error) {
 	type MergeResult = struct {
 		result map[interface{}]interface{}
@@ -150,11 +150,11 @@ func MergeAll(ms []map[interface{}]interface{}, immutable bool,
 		chOne := make(chan MergeResult)
 		chTwo := make(chan MergeResult)
 		go func() {
-			res, err := MergeAll(ms[0:mid], immutable, typeSampleValues...)
+			res, err := MergeAll(ms[0:mid], immutable, override, typeSampleValues...)
 			chOne <- MergeResult{res, err}
 		}()
 		go func() {
-			res, err := MergeAll(ms[mid:], immutable, typeSampleValues...)
+			res, err := MergeAll(ms[mid:], immutable, override, typeSampleValues...)
 			chTwo <- MergeResult{res, err}
 		}()
 		one := <-chOne
@@ -165,7 +165,7 @@ func MergeAll(ms []map[interface{}]interface{}, immutable bool,
 		if two.err != nil {
 			return nil, two.err
 		}
-		return Merge(one.result, two.result, immutable, typeSampleValues...)
+		return Merge(one.result, two.result, immutable, override, typeSampleValues...)
 	}
 }
 

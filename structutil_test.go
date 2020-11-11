@@ -166,7 +166,7 @@ func initialize() {
 func merge1(t *testing.T, immutable bool) {
 	initialize()
 	mergeableMaps := []map[interface{}]interface{}{one, two, three, four, five, six}
-	result, err := MergeAll(mergeableMaps, immutable, TypeValuesToRegister...)
+	result, err := MergeAll(mergeableMaps, immutable, true, TypeValuesToRegister...)
 	if err != nil {
 		t.Fatal("Error reported where should be none")
 	}
@@ -182,7 +182,7 @@ func merge2(t *testing.T, immutable bool) {
 	initialize()
 	// mergeableMaps = []*map[interface{}]interface{} {&one, &two, &three, &four, &five, &six, &intermixed}
 	mergeableMaps := []map[interface{}]interface{}{two, intermixed}
-	result, err := MergeAll(mergeableMaps, immutable, TypeValuesToRegister...)
+	result, err := MergeAll(mergeableMaps, immutable, true, TypeValuesToRegister...)
 	if err != nil {
 		t.Fatal("Error reported where should be none")
 	}
@@ -197,7 +197,7 @@ func TestMerge2(t *testing.T) {
 func TestMutable(t *testing.T) {
 	initialize()
 	preMergeKeyTwo1_1 := two["keyTwo1"].(map[interface{}]interface{})["keyTwo1_1"]
-	Merge(two, twoPrime, false, TypeValuesToRegister...)
+	Merge(two, twoPrime, false, true, TypeValuesToRegister...)
 	postMergeKeyTwo1_1 := two["keyTwo1"].(map[interface{}]interface{})["keyTwo1_1"]
 	assert.Check(t, preMergeKeyTwo1_1 != postMergeKeyTwo1_1)
 }
@@ -205,7 +205,7 @@ func TestMutable(t *testing.T) {
 func TestImmutable(t *testing.T) {
 	initialize()
 	preMergeKeyTwo1_1 := two["keyTwo1"].(map[interface{}]interface{})["keyTwo1_1"]
-	Merge(two, twoPrime, true, TypeValuesToRegister...)
+	Merge(two, twoPrime, true, true, TypeValuesToRegister...)
 	postMergeKeyTwo1_1 := two["keyTwo1"].(map[interface{}]interface{})["keyTwo1_1"]
 	assert.Equal(t, preMergeKeyTwo1_1, postMergeKeyTwo1_1)
 }
@@ -214,7 +214,7 @@ func merge3(t *testing.T, immutable bool) {
 	initialize()
 	// mergeableMaps = []*map[interface{}]interface{} {&one, &two, &three, &four, &five, &six, &intermixed}
 	mergeableMaps := []map[interface{}]interface{}{two, intermixedBad}
-	result, err := MergeAll(mergeableMaps, immutable, TypeValuesToRegister...)
+	result, err := MergeAll(mergeableMaps, immutable, true, TypeValuesToRegister...)
 	if err == nil {
 		resultJsonRepr, _ := json.Marshal(MakeMarshalFriendly(result))
 		t.Fatal("Error should've been reported but wasn't. Got this instead:\n" + string(resultJsonRepr))
@@ -230,7 +230,7 @@ func merge4(t *testing.T, immutable bool) {
 	initialize()
 	// mergeableMaps = []*map[interface{}]interface{} {&one, &two, &three, &four, &five, &six, &intermixed}
 	mergeableMaps := []map[interface{}]interface{}{intermixedBad, two}
-	result, err := MergeAll(mergeableMaps, false, TypeValuesToRegister...)
+	result, err := MergeAll(mergeableMaps, false, true, TypeValuesToRegister...)
 	if err == nil {
 		resultJsonRepr, _ := json.Marshal(MakeMarshalFriendly(result))
 		t.Fatal("Error should've been reported but wasn't. Got this instead:\n" + string(resultJsonRepr))
