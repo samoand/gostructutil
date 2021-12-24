@@ -9,6 +9,20 @@ import (
 	"strings"
 )
 
+const conflictingValMsgPrefix = "Can't override conflicting values"
+
+type ConflictPolicy struct {
+	Override                bool
+	TolerateConflictChecker func(key interface{}) bool
+}
+
+func (entity ConflictPolicy) TolerateConflict(key interface{}) bool {
+	if entity.TolerateConflictChecker == nil {
+		return true
+	}
+	return entity.TolerateConflictChecker(key)
+}
+
 func Stringify(in map[interface{}]interface{}, special map[interface{}]func(interface{}) string) map[string]interface{} {
 	result := make(map[string]interface{})
 	for k, v := range in {
@@ -79,7 +93,7 @@ func sliceRepr(in []interface{}, sep string) string {
 func Merge(
 	one map[interface{}]interface{}, // target
 	two map[interface{}]interface{}, // source
-	immutable, override bool,
+	immutable bool, conflictPolicy ConflictPolicy,
 	typeSampleValues ...interface{}) (map[interface{}]interface{}, error) {
 
 	var source map[interface{}]interface{}
@@ -118,8 +132,18 @@ func Merge(
 						keysRepr())
 					glog.Error(err)
 					return nil, errors.New(err)
-				} else if !targetValueIsMap && override {
-					target[sourceKey] = sourceValue
+				} else if !targetValueIsMap {
+					if conflictPolicy.TolerateConflict(sourceKey) {
+						if conflictPolicy.Override {
+							target[sourceKey] = sourceValue
+						}
+					} else {
+						err := fmt.Sprintf(
+							"%s %s, %s at key %s", conflictingValMsgPrefix,
+							fmt.Sprintf("%v", sourceValue), fmt.Sprintf("%v", targetValue), keysRepr())
+						glog.Error(err)
+						return nil, errors.New(err)
+					}
 				} else {
 					inner(sourceValueAsMap, targetValueAsMap, append(priorKeys, sourceKey))
 				}
@@ -134,7 +158,7 @@ func Merge(
 	return inner(source, target, make([]interface{}, 0))
 }
 
-func MergeAll(ms []map[interface{}]interface{}, immutable, override bool,
+func MergeAll(ms []map[interface{}]interface{}, immutable bool, conflictPolicy ConflictPolicy,
 	typeSampleValues ...interface{}) (map[interface{}]interface{}, error) {
 	type MergeResult = struct {
 		result map[interface{}]interface{}
@@ -150,11 +174,11 @@ func MergeAll(ms []map[interface{}]interface{}, immutable, override bool,
 		chOne := make(chan MergeResult)
 		chTwo := make(chan MergeResult)
 		go func() {
-			res, err := MergeAll(ms[0:mid], immutable, override, typeSampleValues...)
+			res, err := MergeAll(ms[0:mid], immutable, conflictPolicy, typeSampleValues...)
 			chOne <- MergeResult{res, err}
 		}()
 		go func() {
-			res, err := MergeAll(ms[mid:], immutable, override, typeSampleValues...)
+			res, err := MergeAll(ms[mid:], immutable, conflictPolicy, typeSampleValues...)
 			chTwo <- MergeResult{res, err}
 		}()
 		one := <-chOne
@@ -165,7 +189,7 @@ func MergeAll(ms []map[interface{}]interface{}, immutable, override bool,
 		if two.err != nil {
 			return nil, two.err
 		}
-		return Merge(one.result, two.result, immutable, override, typeSampleValues...)
+		return Merge(one.result, two.result, immutable, conflictPolicy, typeSampleValues...)
 	}
 }
 
