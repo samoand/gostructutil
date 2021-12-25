@@ -25,6 +25,9 @@ var conflict2_1 map[interface{}]interface{}
 var conflict2_2 map[interface{}]interface{}
 var conflict3_1 map[interface{}]interface{}
 var conflict3_2 map[interface{}]interface{}
+var slice1_1 map[interface{}]interface{}
+var slice1_2 map[interface{}]interface{}
+var slice1_3 map[interface{}]interface{}
 
 func initialize() {
 	TypeValuesToRegister = []interface{}{map[interface{}]interface{}{}, map[string]interface{}{}, map[string]string{}}
@@ -199,6 +202,26 @@ func initialize() {
 			},
 		},
 	}
+
+	slice1_1 = map[interface{}]interface{}{
+		"key": []string{
+			"val1",
+			"val2",
+		},
+	}
+	slice1_2 = map[interface{}]interface{}{
+		"key": []string{
+			"val1",
+			"val3",
+		},
+	}
+	slice1_3 = map[interface{}]interface{}{
+		"key": []string{
+			"val1",
+			"val2",
+			"val3",
+		},
+	}
 }
 
 func merge1(t *testing.T, immutable bool) {
@@ -293,4 +316,14 @@ func TestMerge5(t *testing.T) {
 		TolerateConflictChecker: func(_ interface{}) bool { return false },
 	}, TypeValuesToRegister...)
 	assert.ErrorContains(t, err, conflictingValMsgPrefix)
+}
+
+func TestMerge6(t *testing.T) {
+	initialize()
+	result, err := Merge(slice1_1, slice1_2, true, ConflictPolicy{
+		Override:                true,
+		TolerateConflictChecker: nil,
+	}, TypeValuesToRegister...)
+	assert.NilError(t, err, "nil ConflictChecker should pass conflicting values")
+	assert.DeepEqual(t, result, slice1_3)
 }

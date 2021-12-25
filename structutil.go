@@ -5,8 +5,10 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
+	"reflect"
 	"strings"
+
+	"github.com/golang/glog"
 )
 
 const conflictingValMsgPrefix = "Can't override conflicting values"
@@ -21,6 +23,39 @@ func (entity ConflictPolicy) TolerateConflict(key interface{}) bool {
 		return true
 	}
 	return entity.TolerateConflictChecker(key)
+}
+
+func isSimpleType(val interface{}) bool {
+	rt := reflect.TypeOf(val)
+	switch rt.Kind() {
+	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint,
+	reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Float32, reflect.Float64,
+	reflect.Complex64, reflect.Complex128, reflect.String:
+		return true
+	}
+	return false
+}
+
+func isSliceStr(val interface{}) bool {
+	if _, ok := val.([]string); ok {
+		return true
+	}
+	return false
+}
+
+func isMapIntf(val interface{}) bool {
+	if _, ok := val.(map[interface{}]interface{}); ok {
+		return true
+	}
+	return false
+}
+
+func validateVal(val interface{}) error {
+	if isSimpleType(val) || isMapIntf(val) || isSliceStr(val) {
+		return nil
+	}
+	return errors.New(fmt.Sprintf("Encountered unsupported type %v\n" +
+		"Supported types: simple | []string | map[interface{}]interface{}", reflect.TypeOf(val)))
 }
 
 func Stringify(in map[interface{}]interface{}, special map[interface{}]func(interface{}) string) map[string]interface{} {
@@ -115,6 +150,9 @@ func Merge(
 		priorKeys []interface{}) (map[interface{}]interface{}, error) {
 
 		for sourceKey, sourceValue := range source {
+			if err := validateVal(sourceValue); err != nil {
+				return nil, err
+			}
 			keysRepr := func() string {
 				priorKeysAsDn := sliceRepr(priorKeys, "/")
 				if len(priorKeysAsDn) > 0 {
@@ -124,32 +162,50 @@ func Merge(
 			}
 			targetValue, existsInTarget := target[sourceKey]
 			if existsInTarget {
-				targetValueAsMap, targetValueIsMap := targetValue.(map[interface{}]interface{})
-				sourceValueAsMap, sourceValueIsMap := sourceValue.(map[interface{}]interface{})
-				if targetValueIsMap != sourceValueIsMap {
+				if sourceValue != nil && targetValue != nil &&
+					reflect.TypeOf(targetValue) != reflect.TypeOf(sourceValue) {
 					err := fmt.Sprintf(
 						"different types at key %s detected in trying to merge maps",
 						keysRepr())
 					glog.Error(err)
 					return nil, errors.New(err)
-				} else if !targetValueIsMap {
+				}
+				// no need to validate type because it's checked by combination of source type validation
+				// and src/dst type equality check.
+
+				if (targetValue == nil || isSimpleType(targetValue)) && sourceValue != targetValue {
 					if conflictPolicy.TolerateConflict(sourceKey) {
 						if conflictPolicy.Override {
 							target[sourceKey] = sourceValue
 						}
 					} else {
-						err := fmt.Sprintf(
+						errMsg := fmt.Sprintf(
 							"%s %s, %s at key %s", conflictingValMsgPrefix,
 							fmt.Sprintf("%v", sourceValue), fmt.Sprintf("%v", targetValue), keysRepr())
-						glog.Error(err)
-						return nil, errors.New(err)
+						glog.Error(errMsg)
+						return nil, errors.New(errMsg)
 					}
-				} else {
-					inner(sourceValueAsMap, targetValueAsMap, append(priorKeys, sourceKey))
+				} else if isMapIntf(targetValue){
+					if _, err := inner(sourceValue.(map[interface{}]interface{}), targetValue.(map[interface{}]interface{}), append(priorKeys, sourceKey)); err != nil {
+						return nil, err
+					}
+				} else if isSliceStr(targetValue) {
+					// put into target values that are in source but not yet in target
+					s := sourceValue.([]string)
+					t := targetValue.([]string)
+					tMap := make(map[string]bool)
+					for _, tv := range t {
+						tMap[tv] = true
+					}
+					for _, sv := range s {
+						if _, ok := tMap[sv]; !ok {
+							t = append(t, sv)
+						}
+					}
+					target[sourceKey] = t
 				}
-
 			} else {
-				(target)[sourceKey] = (source)[sourceKey]
+				target[sourceKey] = source[sourceKey]
 			}
 		}
 
